@@ -25,6 +25,7 @@ Analytical Modeling: Creating aggregated tables in the Gold Layer for KPIs like 
 Optimized Performance: Using Spark optimization techniques to ensure fast processing of large datasets.
 
 📁 Repository Structure
+
 notebooks/: Databricks notebooks for each pipeline stage.
 
 data/: (Optional) Sample data or links to the Olist source.
