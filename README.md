@@ -1,33 +1,49 @@
-# Olist-Ecom-Pipeline
-An automated ETL pipeline built on the Olist Brazilian E-commerce dataset. This project implements a Medallion Architecture (Bronze, Silver, Gold) to transform raw, messy CSV data into high-performance Delta tables for business analytics.
+# Olist E-commerce DE Pipeline
 
-📌 Project Overview
-This project builds a scalable Data Lakehouse using the Olist Brazilian E-Commerce dataset. The goal is to move data through a Medallion Architecture, transforming raw, unstructured data into clean, business-ready insights.
+End-to-end data engineering pipeline on 100k+ Brazilian e-commerce orders.
 
-🛠 Tech Stack
-Language: Python (PySpark)
+## Stack
+PySpark · Databricks Community Edition · Delta Lake · Unity Catalog · GitHub
 
-Platform: Databricks
+## Architecture
+Raw CSVs → Bronze (Delta) → Silver (cleaned + joined) → Gold (KPIs)
 
-Storage: Delta Lake (ACID transactions, Time Travel)
+## Dataset
+Kaggle Olist Brazilian E-commerce — 9 CSVs, 112,650 order items
 
-Architecture: Medallion (Bronze/Silver/Gold)
+## What I built
 
-Version Control: Git & GitHub
+### Bronze
+- Ingested all 9 CSVs into Unity Catalog Delta tables
+- Added audit columns (_ingest_at, _source) for lineage tracking
+- Zero transformations — raw data preserved exactly as source
 
-🏗 Key Features
-Automated Ingestion: Efficiently loading raw CSV data into the Bronze Layer while preserving data lineage.
+### Silver  
+- Cast timestamp columns, stripped whitespace from city/state
+- Deduplicated geolocation: 1,000,163 rows → 20,549 unique zip codes
+- Aggregated payments and reviews before joining to prevent row fanout
+- Built master_sales_data: 112,650 rows × 40 cols joining 7 tables
+- Used left joins throughout to preserve all order_items grain
 
-Data Quality & Cleaning: Handling null values, enforcing schemas, and deduplicating records in the Silver Layer.
+### Gold KPIs
+| Table | Business Question |
+|-------|------------------|
+| revenue_by_state | Which states drive most revenue by month? |
+| delivery_sla | Which states have worst late delivery rates? |
+| seller_performance | Which sellers have best revenue + review scores? |
 
-Analytical Modeling: Creating aggregated tables in the Gold Layer for KPIs like "Monthly Revenue" and "Top Performing Categories."
+## Key Engineering Decisions
+- **left joins everywhere** — inner joins silently drop unmatched rows,
+  corrupting revenue totals in Gold
+- **aggregate before join** — payments has multiple rows per order (installments),
+  joining directly causes fanout and inflates row counts
+- **geolocation dedup** — groupBy zip + avg(lat/lng) before joining,
+  direct join would multiply every customer row by ~50x
+- **writeTo().createOrReplace()** — used instead of .write.mode("overwrite")
+  because Databricks Serverless does not support path-based writes
 
-Optimized Performance: Using Spark optimization techniques to ensure fast processing of large datasets.
-
-📁 Repository Structure
-
-notebooks/: Databricks notebooks for each pipeline stage.
-
-data/: (Optional) Sample data or links to the Olist source.
-
-docs/: Architecture diagrams and logic documentation.
+## How to Run
+1. Upload CSVs to `/Volumes/workspace/olist_bronze/csvs/`
+2. Run `01_Bronze_Ingestion.ipynb`
+3. Run `02_Silver_Transformation.ipynb`
+4. Run `03_Gold_Analysis.ipynb`
